@@ -22,8 +22,16 @@ def _working_directory(cwd: str | None) -> Path:
     return path
 
 
-def _tools(read_tools: bool) -> tuple[Literal["Read", "Grep", "Glob"], ...]:
-    return ("Read", "Grep", "Glob") if read_tools else ()
+def _tools(
+    read_tools: bool,
+    web_search: bool,
+) -> tuple[Literal["Read", "Grep", "Glob", "WebSearch", "WebFetch"], ...]:
+    tools: tuple[Literal["Read", "Grep", "Glob", "WebSearch", "WebFetch"], ...] = ()
+    if read_tools:
+        tools += ("Read", "Grep", "Glob")
+    if web_search:
+        tools += ("WebSearch", "WebFetch")
+    return tools
 
 
 @mcp.tool(structured_output=True)
@@ -33,6 +41,7 @@ async def claude(
     model: Literal["fable", "opus", "sonnet", "haiku"] | None = None,
     effort: Literal["low", "medium", "high", "xhigh", "max"] = "high",
     read_tools: bool = True,
+    web_search: bool = True,
 ) -> ConversationResponse:
     """Start a direct Claude CLI conversation and return a resumable session ID."""
     result = await ClaudeClient().start(
@@ -40,7 +49,7 @@ async def claude(
         cwd=_working_directory(cwd),
         model=model,
         effort=effort,
-        tools=_tools(read_tools),
+        tools=_tools(read_tools, web_search),
     )
     return result.as_response()
 
@@ -53,6 +62,7 @@ async def claude_reply(
     model: Literal["fable", "opus", "sonnet", "haiku"] | None = None,
     effort: Literal["low", "medium", "high", "xhigh", "max"] = "high",
     read_tools: bool = True,
+    web_search: bool = True,
 ) -> ConversationResponse:
     """Continue a Claude CLI conversation using a prior session ID."""
     result = await ClaudeClient().reply(
@@ -61,7 +71,7 @@ async def claude_reply(
         cwd=_working_directory(cwd),
         model=model,
         effort=effort,
-        tools=_tools(read_tools),
+        tools=_tools(read_tools, web_search),
     )
     return result.as_response()
 

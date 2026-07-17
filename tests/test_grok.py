@@ -45,8 +45,13 @@ async def test_grok_start_and_reply_persist_history(tmp_path: Path) -> None:
         transport=httpx.MockTransport(handler),
     )
 
-    first = await client.start("hello")
-    second = await client.reply(first.session_id, "again", reasoning_effort="xhigh")
+    first = await client.start("hello", web_search=False)
+    second = await client.reply(
+        first.session_id,
+        "again",
+        reasoning_effort="xhigh",
+        web_search=False,
+    )
 
     assert first.result == "FIRST"
     assert second.result == "SECOND"
@@ -58,6 +63,64 @@ async def test_grok_start_and_reply_persist_history(tmp_path: Path) -> None:
         {"role": "assistant", "content": "FIRST"},
         {"role": "user", "content": "again"},
     ]
+
+
+@pytest.mark.asyncio
+async def test_grok_web_search_uses_responses_and_returns_sources(tmp_path: Path) -> None:
+    requests: list[tuple[str, dict]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = __import__("json").loads(request.content)
+        requests.append((request.url.path, payload))
+        return httpx.Response(
+            200,
+            json={
+                "model": "grok-test-build",
+                "output": [
+                    {
+                        "type": "reasoning",
+                        "summary": [{"type": "summary_text", "text": "Checked sources."}],
+                    },
+                    {
+                        "type": "message",
+                        "content": [
+                            {
+                                "type": "output_text",
+                                "text": "ANSWER",
+                                "annotations": [
+                                    {
+                                        "type": "url_citation",
+                                        "url": "https://example.test/paper",
+                                        "title": "Paper",
+                                    }
+                                ],
+                            }
+                        ],
+                    },
+                ],
+                "usage": {"total_tokens": 4},
+                "server_side_tool_usage": {"web_search_requests": 1},
+            },
+        )
+
+    client = GrokClient(
+        _config(),
+        session_store=SessionStore(tmp_path / "sessions.db"),
+        transport=httpx.MockTransport(handler),
+    )
+
+    result = await client.start("find paper")
+
+    path, payload = requests[0]
+    assert path == "/v1/responses"
+    assert payload["tools"] == [{"type": "web_search"}]
+    assert payload["reasoning"] == {"effort": "high"}
+    assert result.result == "ANSWER"
+    assert result.model == "grok-test-build"
+    assert result.metadata["sources"] == [
+        {"url": "https://example.test/paper", "title": "Paper"}
+    ]
+    assert result.metadata["serverSideToolUsage"] == {"web_search_requests": 1}
 
 
 @pytest.mark.asyncio

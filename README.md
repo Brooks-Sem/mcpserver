@@ -6,11 +6,29 @@
 
 三个入口相互隔离：
 
-- `mcp-codex`：调用本机 Codex CLI，复用 `~/.codex` 中的认证、模型与 API endpoint。
-- `mcp-claude`：调用本机 Claude Code CLI，复用 `~/.claude` 中的认证、模型与 API endpoint。
-- `mcp-grok`：调用 OpenAI 兼容的 Grok API；默认模型与思考强度由 server 环境配置，工具调用可按次覆盖。
+- `mcp-codex`：调用本机 Codex CLI，复用 `~/.codex` 中的认证、模型与思考强度；默认启用原生实时网页搜索。
+- `mcp-claude`：调用本机 Claude Code CLI，复用 `~/.claude` 中的认证与模型；暴露按次思考强度并默认允许 `WebSearch`/`WebFetch`。
+- `mcp-grok`：调用 OpenAI 兼容的 Grok API；默认模型与思考强度由 server 环境配置，默认通过 Responses API 使用 `web_search`。
 
 Codex 和 Claude 使用上游 CLI 的原生 session/thread。Grok API 通常无服务端会话，本项目使用本机 SQLite 保存消息历史并提供可续接 session。
+
+## 对话、长文本与权限
+
+- 三个首轮工具都返回 `sessionId`，后续分别传给 `codex_reply`、`claude_reply`、`grok_reply` 即可连续对话。
+- Codex/Claude 的输入通过 stdin 传给 CLI，Grok 通过 HTTP JSON 发送；代码不按字符数静默截断输入。
+- 当前响应是单次完整 MCP 结果，不是 token 流。超长输出宜分轮索取；需要产出大型文档时，只在明确授权写入后交给 Codex 保存到工作区。
+- Codex/Claude 的上下文管理由各自 CLI 负责。Grok 将本地 SQLite 中的完整消息历史随续聊请求重发，达到模型上下文上限后应开启新 session 或先请求压缩摘要。
+- 默认权限是只读：Codex 默认 `sandbox=read-only`，Claude 固定 `permission-mode=plan` 且只开放读取和网页工具，Grok 不开放本地文件工具。
+- 只有 Codex 可在单次调用中显式指定 `sandbox=workspace-write`。不建议让多个外部模型并发修改同一工作区；更稳妥的模式是三者研究/审查，主代理统一落盘。
+- 三者的 `web_search` 参数默认均为 `true`，可按调用设为 `false`。搜索能力仍受上游账号、组织策略及兼容 API endpoint 支持情况约束。
+
+## 超时与取消
+
+- Codex/Claude 同时受总时限和无输出空闲时限约束。默认总时限为 900 秒，无输出空闲时限为 300 秒。
+- 分别通过 `MODEL_MCP_CLI_TIMEOUT_SECONDS` 和 `MODEL_MCP_CLI_IDLE_TIMEOUT_SECONDS` 调整；值必须为正数。
+- CLI 有新输出时会刷新空闲计时，但不会突破总时限。达到任一阈值或 MCP 调用被取消时，server 会终止当前上游进程并清理管道；Windows 使用 Job Object 回收整个子进程树。
+- Grok 使用 `GROK_TIMEOUT_SECONDS` 控制 HTTP connect/read/write/pool 超时，默认 180 秒。无响应超时不会自动重试；明确的临时 HTTP 状态或连接失败仍受 `GROK_MAX_RETRIES` 约束。
+- 超时只关闭当前无响应调用，不关闭 MCP server。后续仍可发起新 session；超时 turn 不应继续复用，避免上游历史处于不确定状态。
 
 ## 安全边界
 

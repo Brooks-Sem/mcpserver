@@ -10,6 +10,7 @@ from .models import ConversationResult
 from .process import run_process
 
 SandboxMode = Literal["read-only", "workspace-write", "danger-full-access"]
+ReasoningEffort = Literal["low", "medium", "high", "xhigh"]
 
 
 class CodexProtocolError(RuntimeError):
@@ -58,10 +59,14 @@ class CodexClient:
         self,
         command: CliCommand | None = None,
         timeout_seconds: float | None = None,
+        idle_timeout_seconds: float | None = None,
     ) -> None:
         self.command = command or resolve_codex_command()
         self.timeout_seconds = timeout_seconds or float(
             os.getenv("MODEL_MCP_CLI_TIMEOUT_SECONDS", "900")
+        )
+        self.idle_timeout_seconds = idle_timeout_seconds or float(
+            os.getenv("MODEL_MCP_CLI_IDLE_TIMEOUT_SECONDS", "300")
         )
 
     async def start(
@@ -71,9 +76,16 @@ class CodexClient:
         cwd: Path,
         model: str | None = None,
         sandbox: SandboxMode = "read-only",
+        reasoning_effort: ReasoningEffort | None = None,
+        web_search: bool = True,
     ) -> ConversationResult:
-        args = [
-            *self.command.prefix_args,
+        args = [*self.command.prefix_args]
+        if web_search:
+            args.append("--search")
+        if reasoning_effort:
+            args.extend(("-c", f'model_reasoning_effort="{reasoning_effort}"'))
+        args.extend(
+            (
             "exec",
             "--json",
             "--sandbox",
@@ -81,7 +93,8 @@ class CodexClient:
             "--skip-git-repo-check",
             "-C",
             str(cwd),
-        ]
+            )
+        )
         if model:
             args.extend(("--model", model))
         args.append("-")
@@ -91,6 +104,7 @@ class CodexClient:
             prompt=prompt,
             cwd=cwd,
             timeout_seconds=self.timeout_seconds,
+            idle_timeout_seconds=self.idle_timeout_seconds,
         )
         return parse_codex_events(result.stdout)
 
@@ -101,14 +115,22 @@ class CodexClient:
         *,
         cwd: Path,
         model: str | None = None,
+        reasoning_effort: ReasoningEffort | None = None,
+        web_search: bool = True,
     ) -> ConversationResult:
-        args = [
-            *self.command.prefix_args,
+        args = [*self.command.prefix_args]
+        if web_search:
+            args.append("--search")
+        if reasoning_effort:
+            args.extend(("-c", f'model_reasoning_effort="{reasoning_effort}"'))
+        args.extend(
+            (
             "exec",
             "resume",
             "--json",
             "--skip-git-repo-check",
-        ]
+            )
+        )
         if model:
             args.extend(("--model", model))
         args.extend((session_id, "-"))
@@ -118,5 +140,6 @@ class CodexClient:
             prompt=prompt,
             cwd=cwd,
             timeout_seconds=self.timeout_seconds,
+            idle_timeout_seconds=self.idle_timeout_seconds,
         )
         return parse_codex_events(result.stdout)

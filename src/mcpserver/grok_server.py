@@ -30,6 +30,7 @@ async def grok(
     model: str | None = None,
     reasoning_effort: str | None = None,
     system_prompt: str | None = None,
+    web_search: bool = True,
 ) -> ConversationResponse:
     """Start a Grok conversation using server-configured API credentials."""
     result = await _client().start(
@@ -37,6 +38,7 @@ async def grok(
         model=model,
         reasoning_effort=reasoning_effort,
         system_prompt=system_prompt,
+        web_search=web_search,
     )
     return result.as_response()
 
@@ -47,6 +49,7 @@ async def grok_reply(
     prompt: str,
     model: str | None = None,
     reasoning_effort: str | None = None,
+    web_search: bool = True,
 ) -> ConversationResponse:
     """Continue a locally persisted Grok conversation."""
     result = await _client().reply(
@@ -54,6 +57,7 @@ async def grok_reply(
         prompt,
         model=model,
         reasoning_effort=reasoning_effort,
+        web_search=web_search,
     )
     return result.as_response()
 

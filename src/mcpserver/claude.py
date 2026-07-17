@@ -11,7 +11,7 @@ from .process import run_process
 
 ClaudeModel = Literal["fable", "opus", "sonnet", "haiku"]
 ClaudeEffort = Literal["low", "medium", "high", "xhigh", "max"]
-ClaudeTool = Literal["Read", "Grep", "Glob"]
+ClaudeTool = Literal["Read", "Grep", "Glob", "WebSearch", "WebFetch"]
 
 
 class ClaudeProtocolError(RuntimeError):
@@ -50,10 +50,14 @@ class ClaudeClient:
         self,
         command: CliCommand | None = None,
         timeout_seconds: float | None = None,
+        idle_timeout_seconds: float | None = None,
     ) -> None:
         self.command = command or resolve_claude_command()
         self.timeout_seconds = timeout_seconds or float(
             os.getenv("MODEL_MCP_CLI_TIMEOUT_SECONDS", "900")
+        )
+        self.idle_timeout_seconds = idle_timeout_seconds or float(
+            os.getenv("MODEL_MCP_CLI_IDLE_TIMEOUT_SECONDS", "300")
         )
 
     async def start(
@@ -124,5 +128,6 @@ class ClaudeClient:
             prompt=prompt,
             cwd=cwd,
             timeout_seconds=self.timeout_seconds,
+            idle_timeout_seconds=self.idle_timeout_seconds,
         )
         return parse_claude_result(result.stdout)
