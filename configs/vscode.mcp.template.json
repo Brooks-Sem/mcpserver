@@ -1,0 +1,40 @@
+{
+  "servers": {
+    "codex": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/Brooks-Sem/mcpserver.git@v0.1.0", "mcp-codex"]
+    },
+    "claude": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/Brooks-Sem/mcpserver.git@v0.1.0", "mcp-claude"]
+    },
+    "grok": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/Brooks-Sem/mcpserver.git@v0.1.0", "mcp-grok"],
+      "env": {
+        "GROK_API_URL": "${input:grok-api-url}",
+        "GROK_API_KEY": "${input:grok-api-key}",
+        "GROK_MODEL": "grok-4",
+        "GROK_REASONING_EFFORT": "high",
+        "GROK_REASONING_FIELD": "reasoning_effort"
+      }
+    }
+  },
+  "inputs": [
+    {
+      "id": "grok-api-url",
+      "type": "promptString",
+      "description": "OpenAI-compatible Grok API base URL",
+      "password": false
+    },
+    {
+      "id": "grok-api-key",
+      "type": "promptString",
+      "description": "Grok API key",
+      "password": true
+    }
+  ]
+}
