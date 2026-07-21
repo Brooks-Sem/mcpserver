@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 
 from .claude import ClaudeClient
 from .models import ConversationResponse
@@ -12,6 +12,17 @@ mcp = FastMCP(
     "claude-direct",
     instructions="Direct Claude Code CLI conversations with native resumable session IDs.",
 )
+
+
+def _progress_callback(ctx: Context):
+    progress = 0.0
+
+    async def report(message: str) -> None:
+        nonlocal progress
+        progress += 1.0
+        await ctx.report_progress(progress=progress, message=message)
+
+    return report
 
 
 def _working_directory(cwd: str | None) -> Path:
@@ -37,6 +48,7 @@ def _tools(
 @mcp.tool(structured_output=True)
 async def claude(
     prompt: str,
+    ctx: Context,
     cwd: str | None = None,
     model: Literal["fable", "opus", "sonnet", "haiku"] | None = None,
     effort: Literal["low", "medium", "high", "xhigh", "max"] = "high",
@@ -50,6 +62,7 @@ async def claude(
         model=model,
         effort=effort,
         tools=_tools(read_tools, web_search),
+        progress_callback=_progress_callback(ctx),
     )
     return result.as_response()
 
@@ -58,6 +71,7 @@ async def claude(
 async def claude_reply(
     session_id: str,
     prompt: str,
+    ctx: Context,
     cwd: str | None = None,
     model: Literal["fable", "opus", "sonnet", "haiku"] | None = None,
     effort: Literal["low", "medium", "high", "xhigh", "max"] = "high",
@@ -72,6 +86,7 @@ async def claude_reply(
         model=model,
         effort=effort,
         tools=_tools(read_tools, web_search),
+        progress_callback=_progress_callback(ctx),
     )
     return result.as_response()
 

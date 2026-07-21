@@ -13,6 +13,12 @@ from mcp.client.stdio import stdio_client
 CONDA = os.getenv("CONDA_EXE") or shutil.which("conda.exe") or shutil.which("conda")
 ROOT = Path(__file__).resolve().parents[1]
 
+
+async def print_progress(progress: float, total: float | None, message: str | None) -> None:
+    del total
+    print(f"progress[{progress:g}]: {message or ''}")
+
+
 @asynccontextmanager
 async def session_for(
     entrypoint: str,
@@ -58,6 +64,7 @@ async def live_codex(source: str | None) -> None:
                 "prompt": "Reply with exactly CODEX_MCP_LIVE_FIRST_OK.",
                 "cwd": str(ROOT),
             },
+            progress_callback=print_progress,
         )
         session_id = first.structuredContent["sessionId"]
         second = await session.call_tool(
@@ -67,6 +74,7 @@ async def live_codex(source: str | None) -> None:
                 "prompt": "Reply with exactly CODEX_MCP_LIVE_SECOND_OK.",
                 "cwd": str(ROOT),
             },
+            progress_callback=print_progress,
         )
         print(first.structuredContent)
         print(second.structuredContent)
@@ -82,6 +90,7 @@ async def live_claude(source: str | None) -> None:
                 "effort": "low",
                 "read_tools": False,
             },
+            progress_callback=print_progress,
         )
         session_id = first.structuredContent["sessionId"]
         second = await session.call_tool(
@@ -93,6 +102,7 @@ async def live_claude(source: str | None) -> None:
                 "effort": "low",
                 "read_tools": False,
             },
+            progress_callback=print_progress,
         )
         print(first.structuredContent)
         print(second.structuredContent)

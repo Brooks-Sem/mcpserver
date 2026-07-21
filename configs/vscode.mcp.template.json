@@ -3,12 +3,18 @@
     "codex": {
       "type": "stdio",
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/Brooks-Sem/mcpserver.git@v0.1.0", "mcp-codex"]
+      "args": ["--from", "git+https://github.com/Brooks-Sem/mcpserver.git@v0.1.0", "mcp-codex"],
+      "env": {
+        "MODEL_MCP_CLI_IDLE_TIMEOUT_SECONDS": "300"
+      }
     },
     "claude": {
       "type": "stdio",
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/Brooks-Sem/mcpserver.git@v0.1.0", "mcp-claude"]
+      "args": ["--from", "git+https://github.com/Brooks-Sem/mcpserver.git@v0.1.0", "mcp-claude"],
+      "env": {
+        "MODEL_MCP_CLI_IDLE_TIMEOUT_SECONDS": "300"
+      }
     },
     "grok": {
       "type": "stdio",
